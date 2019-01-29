@@ -18,8 +18,8 @@ class PolgradRunnerTf:
 			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1]))
 		self.reward_t = tf.placeholder(tf.float32)
 		self.sampled_t = tf.placeholder(tf.int32)
-		self.onehot_sampled_t = tf.one_hot(self.sampled_t, 1)
-		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(self.layers[-1])), axis=1))
+		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1])
+		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(tf.clip_by_value(self.layers[-1], 1e-10, 1.0))), axis=1))
 		#tf.summary.histogram("Loss", self.loss_t)
 		self.trainer = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss_t)
 
@@ -90,5 +90,5 @@ class PolgradRunnerTf:
 			plays = self.selfplay(dimen, winLen, batch_size, session)
 			for play in plays:
 				for turn, board in enumerate(play):
-					reward_d = 0.1 if len(board) == self.node_nums[0] else 1 if len(board) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
+					reward_d = 0.1 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
 					session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
