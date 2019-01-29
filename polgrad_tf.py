@@ -3,6 +3,7 @@ import tensorflow as tf
 from mnk import MnkGame
 from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, reverseboard, needs_session
 
+#TODO: Can this learn that "polluted" tuples are worthless(in emacs terms)? Some feature engineering might be needed
 class PolgradRunnerTf:
 	"""The tensors. The first element is the input placeholder and the last one the output layer."""
 	layers = []
@@ -86,9 +87,14 @@ class PolgradRunnerTf:
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
+		histo = {0.1: 0, 1: 0, -1: 0}
 		for i in range(cycles):
+			if i % 100 == 99:
+				print(f"{i + 1}th cycle")
 			plays = self.selfplay(dimen, winLen, batch_size, session)
 			for play in plays:
 				for turn, board in enumerate(play):
 					reward_d = 0.1 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
+					histo[reward_d] += 1
 					session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
+		print(histo)
