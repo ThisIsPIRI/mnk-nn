@@ -3,7 +3,7 @@ import tensorflow as tf
 from polgrad_tf import PolgradRunnerTf
 
 def main():
-	LOAD = False
+	LOAD = True
 	WEIGHT_PATH = "weight/weight.ckpt"
 	DIMEN = (3, 3); BOARD_SIZE = DIMEN[0] * DIMEN[1]
 
@@ -14,7 +14,7 @@ def main():
 			tf.train.Saver().restore(sess, WEIGHT_PATH)
 		else:
 			sess.run(tf.global_variables_initializer())
-		runner.train(dimen=DIMEN, winLen=3, batch_size=2, cycles=2, session=sess)
+		runner.train(dimen=DIMEN, winLen=3, batch_size=100, cycles=100, session=sess)
 		saver.save(sess, WEIGHT_PATH)
 
 if __name__ == "__main__":

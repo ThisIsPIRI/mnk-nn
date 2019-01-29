@@ -1,14 +1,14 @@
 import tensorflow as tf
 
 from mnk import MnkGame
-from mnkutil import choose_cell_weighted, to_dense_input, reverseboard, needs_session
+from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, reverseboard, needs_session
 
 class PolgradRunnerTf:
 	"""The tensors. The first element is the input placeholder and the last one the output layer."""
 	layers = []
 	def __init__(self, node_nums, activations):
 		"""
-		Builds the graph and optionally loads saved weights.
+		Builds the graph.
 		:param node_nums: A list containing the number of neurons in each layer from input to output.
 		:param activations: The list of Tensorflow activation functions to be used in each connections.
 		"""
@@ -16,9 +16,12 @@ class PolgradRunnerTf:
 		self.layers.append(tf.placeholder(tf.float32, shape=(None, node_nums[0])))
 		for i in range(len(node_nums))[1:]:
 			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1]))
-		self.modulator_t = tf.placeholder(tf.float32)
-		#loss = NotImplementedError("stub!") TODO: Implement
-		#self.trainer = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
+		self.reward_t = tf.placeholder(tf.float32)
+		self.sampled_t = tf.placeholder(tf.int32)
+		self.onehot_sampled_t = tf.one_hot(self.sampled_t, 1)
+		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(self.layers[-1])), axis=1))
+		#tf.summary.histogram("Loss", self.loss_t)
+		self.trainer = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss_t)
 
 	@needs_session
 	def forward_propagate(self, samples, session=None):
@@ -63,12 +66,11 @@ class PolgradRunnerTf:
 				input_d = to_dense_input(game.array)
 				if j % 2 == 0: #Represent our side's stone by 1 and the opponent's by -1.
 					input_d = reverseboard(input_d)
-				boards.append(input_d)
 				decision = self.play(game, board=input_d, session=session)
+				boards.append((input_d, to_dense_index(game, decision)))
 				game.place(decision)
 				if game.checkWin(decision):
 					break
-			#Do nothing in a draw. TODO: do something?
 			result.append(boards) #train() will figure out who won from len(boards) % 2
 			game.initialize()
 		return result
@@ -83,6 +85,10 @@ class PolgradRunnerTf:
 		:param cycles: How many batches of games to play.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
+		#writer = tf.summary.FileWriter("logs/")
 		for i in range(cycles):
-			self.selfplay(dimen, winLen, batch_size, session)
-		#TODO: the core
+			plays = self.selfplay(dimen, winLen, batch_size, session)
+			for play in plays:
+				for turn, board in enumerate(play):
+					reward_d = 0.1 if len(board) == self.node_nums[0] else 1 if len(board) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
+					session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})

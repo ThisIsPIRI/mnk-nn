@@ -115,14 +115,3 @@ class MnkGame:
 	# getLinePoints not implemented
 	def inBoundary(self, y, x):
 		return 0 <= y < self.verSize and 0 <= x < self.horSize
-
-	def dumpData(self):
-		data = ""
-		for row in self.array:
-			for s in row:
-				if s == self.shapes[self.nextIndex]: data += '1'
-				elif s == Shape.N: data += '0'
-				else: data += '-1'
-				data += ' '
-			data += '\n'
-		return data

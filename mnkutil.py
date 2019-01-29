@@ -49,6 +49,18 @@ def to_game_index(game, data):
 	else:
 		return int(data % game[0]), int(data / game[1])
 
+def to_dense_index(game, data):
+	"""
+	Converts a 2d index to flattened index.
+	:param game: The MnkGame or a tuple containing (horSize, verSize).
+	:param data: The index(x, y).
+	:return: An int.
+	"""
+	if isinstance(game, MnkGame):
+		return game.horSize * data[1] + data[0]
+	else:
+		return game[0] * data[1] + data[0]
+
 def to_dense_input(array):
 	"""
 	Converts a multidimensional python list to 1d np.ndarray in row-major(C-style) order.
