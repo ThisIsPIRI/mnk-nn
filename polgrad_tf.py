@@ -66,6 +66,7 @@ class PolgradRunnerTf:
 		game = MnkGame(dimen[0], dimen[1], winLen)
 		for i in range(cycles):
 			boards = []
+			winner = 0
 			for j in range(game.horSize * game.verSize):
 				input_d = to_dense_input(game.array)
 				decision = self.play(game, board=input_d, session=session)
@@ -83,8 +84,9 @@ class PolgradRunnerTf:
 					exit()
 
 				if game.checkWin(decision):
+					winner = 1 if j % 2 == 1 else -1
 					break
-			result.append(boards) #train() will figure out who won from len(boards) % 2
+			result.append((boards, winner)) #-1: 1st won, 1: 2nd won, 0: draw
 			game.initialize()
 		return result
 
@@ -96,19 +98,19 @@ class PolgradRunnerTf:
 		"""
 		winr, loser, drawr = rewards
 		plays = self.selfplay(dimen, winLen, batch_size, session)
-		arrs = {winr: [], drawr: []}
+		arrs = {winr: [], drawr: []} #TODO: Handle different rewards without losing performance
 		for play in plays:
 			# Classify the boards by the rewards eventually obtained
-			if len(play) == self.node_nums[-1]:
-				arrs[drawr].extend(play)
+			if play[1] == 0:
+				arrs[drawr].extend(play[0])
 			else:
-				arrs[winr].extend(play[1 - len(play) % 2::2])
+				arrs[winr].extend(play[0][1 - (len(play[0]) % 2)::2])
 		# arrs[loser].extend(play[len(play) % 2::2]) #No need to collect lost boards when loser == 0
 		# Classify them further by the action taken
 		for k in arrs:
 			histo[k] += len(arrs[k])
 			# if k != 0: continue #Ignore zero rewards, regardless of what they represent #Lost boards not collected
-			action_arrs = [[] for itr in range(self.node_nums[-1])]
+			action_arrs = [[] for _ in range(self.node_nums[-1])]
 			for board in arrs[k]:
 				action_arrs[board[1]].append(board[0])
 			for action in range(self.node_nums[-1]):
