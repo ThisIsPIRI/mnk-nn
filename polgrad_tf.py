@@ -9,7 +9,7 @@ from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_
 class PolgradRunnerTf:
 	"""The tensors. The first element is the input placeholder and the last one the output layer."""
 	layers = []
-	def __init__(self, node_nums, activations, last_logged=False):
+	def __init__(self, node_nums, activations):
 		"""
 		Builds the graph.
 		:param node_nums: A list containing the number of neurons in each layer from input to output.
@@ -23,9 +23,7 @@ class PolgradRunnerTf:
 		self.reward_t = tf.placeholder(tf.float32)
 		self.sampled_t = tf.placeholder(tf.int32)
 		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1])
-		if not last_logged:
-			self.layers[-1] = tf.log(tf.clip_by_value(self.layers[-1], 1e-9, 1.0))
-		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, self.layers[-1]), axis=1))
+		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0))), axis=1))
 		#tf.summary.histogram("Loss", self.loss_t)
 		self.trainer = tf.train.AdamOptimizer(0.001).minimize(self.loss_t)
 
@@ -72,7 +70,18 @@ class PolgradRunnerTf:
 				input_d = to_dense_input(game.array)
 				decision = self.play(game, board=input_d, session=session)
 				boards.append((input_d, to_dense_index(game, decision)))
-				game.place(decision)
+
+				#TODO: Remove
+				try:
+					game.place(decision)
+				except ValueError:
+					print(game.array)
+					fd = {self.layers[0]: input_d.reshape(-1, self.node_nums[0])}
+					for l in self.layers[1:]:
+						print("layer: ", session.run(l, fd))
+					session.close()
+					exit()
+
 				if game.checkWin(decision):
 					break
 			result.append(boards) #train() will figure out who won from len(boards) % 2
@@ -80,7 +89,7 @@ class PolgradRunnerTf:
 		return result
 
 	@needs_session
-	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, session=None):
+	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), session=None):
 		"""
 		Trains the network with policy gradients.
 		:param dimen: A 2-tuple: (horSize, verSize) of the game.
@@ -88,10 +97,13 @@ class PolgradRunnerTf:
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
 		:param stops: At every (stops)th step, the runner will print out some statistics.
+		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing).
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
-		histo = {0.2: 0, 1: 0, 0: 0}
+		board_size = dimen[0] * dimen[1]
+		winr, loser, drawr = rewards
+		histo = {winr: 0, loser: 0, drawr: 0}
 		performances = []
 		ai = RandomAi()
 		prepareplt()
@@ -102,11 +114,21 @@ class PolgradRunnerTf:
 				performances.append(evaluate_player(lambda g: self.play(g, to_dense_input(g.array), session=session), lambda g: ai.play(g), rules=(dimen[0], dimen[1], winLen)))
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 			plays = self.selfplay(dimen, winLen, batch_size, session)
+			arrs = {winr: [], loser: [], drawr: []}
 			for play in plays:
-				for turn, board in enumerate(play):
-					reward_d = 0.2 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else 0 #The modulus == 1 if 1st won else 0
-					histo[reward_d] += 1
-					if reward_d != 0:
-						session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
+				#Classify the boards by the rewards eventually obtained
+				if len(play) == board_size:
+					arrs[drawr].extend(play)
+				else:
+					arrs[winr].extend(play[1 - len(play) % 2::2]) #TODO: too "clever"?
+					arrs[loser].extend(play[len(play) % 2::2])
+			#Classify them further by the action taken
+			for k in arrs:
+				histo[k] += len(arrs[k])
+				if k != 0: continue #Ignore zero rewards, regardless of what they represent
+				for action in range(board_size):
+					same_reward_action = [x[0] for x in arrs[k] if x[1] == action]
+					if len(same_reward_action) != 0:
+						session.run(self.trainer, feed_dict={self.layers[0]: same_reward_action, self.reward_t: k, self.sampled_t: action})
 		print(histo)
 		return histo, performances

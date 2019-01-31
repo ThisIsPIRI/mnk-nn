@@ -11,7 +11,7 @@ def main():
 	DIMEN = (3, 3); BOARD_SIZE = DIMEN[0] * DIMEN[1]
 	targetai = RandomAi()
 
-	runner = PolgradRunnerTf([BOARD_SIZE * 2, BOARD_SIZE * 2, BOARD_SIZE * 2, BOARD_SIZE], [tf.nn.relu, tf.nn.relu, tf.nn.log_softmax], last_logged=True)
+	runner = PolgradRunnerTf([BOARD_SIZE * 2, BOARD_SIZE * 2, BOARD_SIZE * 2, BOARD_SIZE], [tf.nn.relu, tf.nn.relu, tf.nn.softmax])
 	saver = tf.train.Saver()
 	with tf.Session() as sess:
 		if LOAD:
