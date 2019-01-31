@@ -63,14 +63,18 @@ def to_dense_index(game, data):
 
 def to_dense_input(array):
 	"""
-	Converts a multidimensional python list to 1d np.ndarray in row-major(C-style) order.
-	:param array: The
+	Converts a multidimensional python list to a np.ndarray suitable for feeding into PolgradRunnerTf.
+	:param array: The MnkGame.array.
 	:return: The flattened np.ndarray.
 	"""
-	return np.array(array).flatten('C')
-
-def reverseboard(array):
-	return np.array([-x for x in array])
+	size = len(array) * len(array[0])
+	result = np.zeros(size * 2)
+	for i, s in enumerate(np.array(array).flatten('C')):
+		if s == Shape.X:
+			result[i] = 1
+		elif s == Shape.O:
+			result[9 + i] = 1
+	return result
 
 def needs_session(func):
 	"""

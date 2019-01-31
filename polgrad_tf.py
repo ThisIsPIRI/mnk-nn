@@ -1,8 +1,10 @@
 import tensorflow as tf
 import time
 
+from metrics import evaluate_player, prepareplt, shownonblock
 from mnk import MnkGame
-from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, reverseboard, needs_session
+from mnkais import RandomAi
+from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_session
 
 #TODO: Can this learn that "polluted" tuples are worthless(in emacs terms)? Some feature engineering might be needed
 class PolgradRunnerTf:
@@ -66,8 +68,6 @@ class PolgradRunnerTf:
 			boards = []
 			for j in range(game.horSize * game.verSize):
 				input_d = to_dense_input(game.array)
-				if j % 2 == 0: #Represent our side's stone by 1 and the opponent's by -1.
-					input_d = reverseboard(input_d)
 				decision = self.play(game, board=input_d, session=session)
 				boards.append((input_d, to_dense_index(game, decision)))
 				game.place(decision)
@@ -88,16 +88,22 @@ class PolgradRunnerTf:
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
-		histo = {0.1: 0, 1: 0, -1: 0}
+		histo = {0.2: 0, 1: 0, 0: 0}
+		performances = []
+		ai = RandomAi()
+		prepareplt()
 		started = time.time()
 		for i in range(cycles):
-			if i % 100 == 99:
+			if i % 10 == 9:
 				print(f"{i + 1}th game, {time.time() - started} seconds have elapsed since the training started")
+				performances.append(evaluate_player(lambda g: self.play(g, to_dense_input(g.array), session=session), lambda g: ai.play(g)))
+				shownonblock(performances, labels=["X won", "O won", "draw"])
 			plays = self.selfplay(dimen, winLen, batch_size, session)
 			for play in plays:
 				for turn, board in enumerate(play):
-					reward_d = 0.1 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
+					reward_d = 0.2 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else 0 #The modulus == 1 if X won else 0
 					histo[reward_d] += 1
-					if reward_d != 0.1:
+					if reward_d != 0:
 						session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
 		print(histo)
+		return histo, performances
