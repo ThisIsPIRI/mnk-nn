@@ -19,9 +19,9 @@ def main():
 		else:
 			sess.run(tf.global_variables_initializer())
 		if input("train the network?(y/n): ") == "y":
-			runner.train(dimen=DIMEN, winLen=3, batch_size=100, cycles=1000, stops=100, session=sess)
-		print(evaluate_player(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: targetai.play(g), rules=(3, 3, 3)))
-		saver.save(sess, WEIGHT_PATH)
+			runner.train(dimen=DIMEN, winLen=3, batch_size=100, cycles=1000, stops=100, interactive=False, session=sess)
+			saver.save(sess, WEIGHT_PATH)
+		print(evaluate_player(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: targetai.play(g), rules=(3, 3, 3), games=200))
 		print(play_game(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: eval(input()), rules=(3, 3, 3), print_board=True))
 
 if __name__ == "__main__":

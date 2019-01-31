@@ -23,13 +23,11 @@ def play_game(first_player, second_player, rules, print_board=False):
 		if print_board:
 			print(np.array(game.array))
 		if game.checkWin(decision):
-			break
-	if len(game.history) == 9:
-		return "draw"
-	elif len(game.history) % 2 == 0:
-		return "2nd won"
-	else:
-		return "1st won"
+			if len(game.history) % 2 == 0:
+				return "2nd won"
+			else:
+				return "1st won"
+	return "draw"
 
 def evaluate_player(first_player, second_player, rules, games=100):
 	"""

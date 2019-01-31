@@ -89,21 +89,48 @@ class PolgradRunnerTf:
 		return result
 
 	@needs_session
-	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), session=None):
+	def _train_cycle(self, dimen, winLen, batch_size, rewards, histo, session=None):
+		"""
+		See train() for parameter documentations.
+		:param histo: The histogram dict {winr: int, loser: int, drawr: int}. The numbers will be incremented.
+		"""
+		winr, loser, drawr = rewards
+		plays = self.selfplay(dimen, winLen, batch_size, session)
+		arrs = {winr: [], drawr: []}
+		for play in plays:
+			# Classify the boards by the rewards eventually obtained
+			if len(play) == self.node_nums[-1]:
+				arrs[drawr].extend(play)
+			else:
+				arrs[winr].extend(play[1 - len(play) % 2::2])
+		# arrs[loser].extend(play[len(play) % 2::2]) #No need to collect lost boards when loser == 0
+		# Classify them further by the action taken
+		for k in arrs:
+			histo[k] += len(arrs[k])
+			# if k != 0: continue #Ignore zero rewards, regardless of what they represent #Lost boards not collected
+			action_arrs = [[] for itr in range(self.node_nums[-1])]
+			for board in arrs[k]:
+				action_arrs[board[1]].append(board[0])
+			for action in range(self.node_nums[-1]):
+				# same_reward_action = [x[0] for x in arrs[k] if x[1] == action]
+				if len(action_arrs[action]) != 0:
+					session.run(self.trainer, feed_dict={self.layers[0]: action_arrs[action], self.reward_t: k, self.sampled_t: action})
+
+	@needs_session
+	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), interactive=False, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param dimen: A 2-tuple: (horSize, verSize) of the game.
 		:param winLen: The k in m,n,k game.
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
-		:param stops: At every (stops)th step, the runner will print out some statistics.
+		:param stops: At every (stops)th cycle, the runner will print out some statistics.
 		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing).
+		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
-		board_size = dimen[0] * dimen[1]
-		winr, loser, drawr = rewards
-		histo = {winr: 0, loser: 0, drawr: 0}
+		histo = {rewards[0]: 0, rewards[1]: 0, rewards[2]: 0}
 		performances = []
 		ai = RandomAi()
 		prepareplt()
@@ -112,23 +139,10 @@ class PolgradRunnerTf:
 			if i % stops == (stops - 1):
 				print(f"{i + 1}th cycle, {time.time() - started} seconds have elapsed since the training started")
 				performances.append(evaluate_player(lambda g: self.play(g, to_dense_input(g.array), session=session), lambda g: ai.play(g), rules=(dimen[0], dimen[1], winLen)))
+				print(performances[-1])
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
-			plays = self.selfplay(dimen, winLen, batch_size, session)
-			arrs = {winr: [], loser: [], drawr: []}
-			for play in plays:
-				#Classify the boards by the rewards eventually obtained
-				if len(play) == board_size:
-					arrs[drawr].extend(play)
-				else:
-					arrs[winr].extend(play[1 - len(play) % 2::2]) #TODO: too "clever"?
-					arrs[loser].extend(play[len(play) % 2::2])
-			#Classify them further by the action taken
-			for k in arrs:
-				histo[k] += len(arrs[k])
-				if k != 0: continue #Ignore zero rewards, regardless of what they represent
-				for action in range(board_size):
-					same_reward_action = [x[0] for x in arrs[k] if x[1] == action]
-					if len(same_reward_action) != 0:
-						session.run(self.trainer, feed_dict={self.layers[0]: same_reward_action, self.reward_t: k, self.sampled_t: action})
+				if interactive and input("Continue training?(y/n): ") == 'n':
+					break
+			self._train_cycle(dimen, winLen, batch_size, rewards, histo, session)
 		print(histo)
 		return histo, performances
