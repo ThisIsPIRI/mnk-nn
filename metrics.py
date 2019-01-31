@@ -4,9 +4,16 @@ import pandas as pd
 
 from mnk import MnkGame
 
-def play_game(first_player, second_player, game=None, print_board=False):
-	if game is None:
-		game = MnkGame(3, 3, winStreak=3)
+def play_game(first_player, second_player, rules, print_board=False):
+	"""
+	Lets the players play an MnkGame.
+	:param first_player: The first player. Must have a play() method that accepts an MnkGame as the first positional argument.
+	:param second_player: The second player. Must have a play() method that accepts an MnkGame as the first positional argument.
+	:param rules: A tuple (horSize, verSize, winLen)
+	:param print_board: Whether to print the board at the end of each turn.
+	:return: "1st won" if first_player won, "2nd won" if second_player won and "draw" if they drew.
+	"""
+	game = MnkGame(*rules)
 	for i in range(game.horSize * game.verSize):
 		if i % 2 == 0:
 			decision = first_player(game)
@@ -20,37 +27,47 @@ def play_game(first_player, second_player, game=None, print_board=False):
 	if len(game.history) == 9:
 		return "draw"
 	elif len(game.history) % 2 == 0:
-		return "O won"
+		return "2nd won"
 	else:
-		return "X won"
+		return "1st won"
 
-def evaluate_player(first_player, second_player):
-	histo = {"O won": 0, "X won": 0, "draw": 0}
-	for i in range(100):
-		histo[play_game(first_player, second_player)] += 1
+def evaluate_player(first_player, second_player, rules, games=100):
+	"""
+	Pits the players against each other games times and returns how many times they won, lost or drew.
+	:param first_player: The first player. Must have a play() method that accepts an MnkGame as the first positional argument.
+	:param second_player: The second player. Must have a play() method that accepts an MnkGame as the first positional argument.
+	:param rules: A tuple (horSize, verSize, winLen)
+	:parma games: How many games to play.
+	:return: A dict {"1st won": int, "2nd won": int, "draw": int}
+	"""
+	histo = {"1st won": 0, "2nd won": 0, "draw": 0}
+	for i in range(games):
+		histo[play_game(first_player, second_player, rules)] += 1
 	return histo
 
 def prepareplt():
+	"""Call before calling shownonblock."""
 	plt.ion()
 	plt.show()
 
 def shownonblock(data, labels=None):
+	"""
+	Plots the individual elements in data as separate lines and shows them with pyplot.
+	:param data: The list of lines to plot. Can be a list of dicts if the keys are supplied as labels.
+	:param labels: The labels for each line.
+	"""
 	if isinstance(data, list) and isinstance(data[0], dict) and labels is not None:
-		print(data)
 		data = pd.DataFrame(data)
 		data = [data[l] for l in labels]
-		print(data)
+
 	plt.clf()
+
 	if labels is None:
 		for i in range(len(data)):
 			plt.plot(data[i])
 	else:
 		for i in range(len(data)):
 			plt.plot(data[i], label=labels[i])
-
-	#if plt.gca().get_legend() is not None:
-		#plt.gca().get_legend().remove()
 	plt.legend()
 	plt.draw()
 	plt.pause(0.001)
-	#plt.show(block=False)
