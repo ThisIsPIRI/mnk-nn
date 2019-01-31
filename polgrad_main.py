@@ -32,7 +32,7 @@ def main():
 	LOAD = True
 	WEIGHT_PATH = "weight/weight.ckpt"
 	DIMEN = (3, 3); BOARD_SIZE = DIMEN[0] * DIMEN[1]
-	targetAi = FillerAi()
+	targetAi = RandomAi()
 
 	runner = PolgradRunnerTf([BOARD_SIZE, BOARD_SIZE * 2, 20, BOARD_SIZE], [tf.nn.relu, tf.nn.relu, tf.nn.softmax])
 	saver = tf.train.Saver()
@@ -42,9 +42,9 @@ def main():
 		else:
 			sess.run(tf.global_variables_initializer())
 		if input("train the network?(y/n): ") == "y":
-			runner.train(dimen=DIMEN, winLen=3, batch_size=50, cycles=1000, session=sess)
+			runner.train(dimen=DIMEN, winLen=3, batch_size=50, cycles=100, session=sess)
 		histo = {"O won": 0, "X won": 0, "draw": 0}
-		for i in range(100):
+		for i in range(200):
 			histo[playGame(lambda g: runner.play(g, board=to_reversed_dense(g.array), session=sess), lambda g: targetAi.play(g))] += 1
 		print(histo)
 		playGame(lambda g: runner.play(g, board=to_reversed_dense(g.array), session=sess), lambda g: eval(input()), print_board=True)

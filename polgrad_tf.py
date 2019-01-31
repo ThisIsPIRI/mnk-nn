@@ -1,4 +1,5 @@
 import tensorflow as tf
+import time
 
 from mnk import MnkGame
 from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, reverseboard, needs_session
@@ -22,7 +23,7 @@ class PolgradRunnerTf:
 		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1])
 		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(tf.clip_by_value(self.layers[-1], 1e-10, 1.0))), axis=1))
 		#tf.summary.histogram("Loss", self.loss_t)
-		self.trainer = tf.train.GradientDescentOptimizer(0.001).minimize(self.loss_t)
+		self.trainer = tf.train.AdamOptimizer(0.001).minimize(self.loss_t)
 
 	@needs_session
 	def forward_propagate(self, samples, session=None):
@@ -32,7 +33,7 @@ class PolgradRunnerTf:
 		:param session: The session to use. If not supplied, a new session is created and closed.
 		:return: The probabilities for each cell, flattened in C order.
 		"""
-		result = session.run(self.layers[len(self.layers) - 1], feed_dict={self.layers[0]: samples})
+		result = session.run(self.layers[-1], feed_dict={self.layers[0]: samples})
 		return result
 
 	def play(self, game, board=None, session=None):
@@ -88,13 +89,15 @@ class PolgradRunnerTf:
 		"""
 		#writer = tf.summary.FileWriter("logs/")
 		histo = {0.1: 0, 1: 0, -1: 0}
+		started = time.time()
 		for i in range(cycles):
 			if i % 100 == 99:
-				print(f"{i + 1}th cycle")
+				print(f"{i + 1}th game, {time.time() - started} seconds have elapsed since the training started")
 			plays = self.selfplay(dimen, winLen, batch_size, session)
 			for play in plays:
 				for turn, board in enumerate(play):
 					reward_d = 0.1 if len(play) == self.node_nums[0] else 1 if len(play) % 2 == turn % 2 else -1 #The modulus == 1 if X won else 0
 					histo[reward_d] += 1
-					session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
+					if reward_d != 0.1:
+						session.run(self.trainer, feed_dict={self.layers[0]: [board[0]], self.reward_t: reward_d, self.sampled_t: board[1]})
 		print(histo)

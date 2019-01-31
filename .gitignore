@@ -4,3 +4,4 @@ __pycache__/
 Legacy
 logs
 weight
+benchmark.py
