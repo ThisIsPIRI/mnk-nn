@@ -38,7 +38,7 @@ class PolgradRunnerTf:
 		result = session.run(self.layers[-1], feed_dict={self.layers[0]: samples})
 		return result
 
-	def play(self, game, board=None, session=None):
+	def play(self, game, board=None, session=None): #TODO: Return the probabilities without changing the API?
 		"""
 		Determines the best cell to play on.
 		:param game: An MnkGame.
@@ -140,6 +140,7 @@ class PolgradRunnerTf:
 		for i in range(cycles):
 			if i % stops == (stops - 1):
 				print(f"{i + 1}th cycle, {time.time() - started} seconds have elapsed since the training started")
+				print(histo)
 				performances.append(evaluate_player(lambda g: self.play(g, to_dense_input(g.array), session=session), lambda g: ai.play(g), rules=(dimen[0], dimen[1], winLen)))
 				print(performances[-1])
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
