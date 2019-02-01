@@ -99,18 +99,19 @@ class PolgradRunnerTf:
 		"""
 		winr, loser, drawr = rewards
 		plays = self.selfplay(dimen, winLen, batch_size, session)
-		arrs = {winr: [], drawr: []} #TODO: Handle different rewards without losing performance
+		arrs = {winr: [], loser: [], drawr: []}
 		for play in plays:
 			# Classify the boards by the rewards eventually obtained
 			if play[1] == 0:
 				arrs[drawr].extend(play[0])
 			else:
 				arrs[winr].extend(play[0][1 - (len(play[0]) % 2)::2])
-		# arrs[loser].extend(play[len(play) % 2::2]) #No need to collect lost boards when loser == 0
+				arrs[loser].extend(play[0][(len(play[0]) % 2)::2])
 		# Classify them further by the action taken
 		for k in arrs:
 			histo[k] += len(arrs[k])
-			# if k != 0: continue #Ignore zero rewards, regardless of what they represent #Lost boards not collected
+			if k == 0: #Ignore zero rewards, regardless of what they represent
+				continue
 			action_arrs = [[] for _ in range(self.node_nums[-1])]
 			for board in arrs[k]:
 				action_arrs[board[1]].append(board[0])
@@ -120,15 +121,15 @@ class PolgradRunnerTf:
 					session.run(self.trainer, feed_dict={self.layers[0]: action_arrs[action], self.reward_t: k, self.sampled_t: action})
 
 	@needs_session
-	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), interactive=False, save_path=None, session=None):
+	def train(self, dimen, winLen, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param dimen: A 2-tuple: (horSize, verSize) of the game.
 		:param winLen: The k in m,n,k game.
+		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing). The 3 must be different from each other.
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
 		:param stops: At every (stops)th cycle, the runner will print out some statistics.
-		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing).
 		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
 		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
 		:param session: The tf.Session to use. If not specified, a new Session is created.

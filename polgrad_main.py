@@ -19,7 +19,7 @@ def main():
 		else:
 			sess.run(tf.global_variables_initializer())
 		if input("train the network?(y/n): ") == "y":
-			runner.train(dimen=DIMEN, winLen=3, batch_size=100, cycles=2000, stops=200, rewards=(1, 0, 0), interactive=False, save_path=WEIGHT_PATH, session=sess)
+			runner.train(dimen=DIMEN, winLen=3, rewards=(1, -1, 0), batch_size=100, cycles=200, stops=100, interactive=False, save_path=WEIGHT_PATH, session=sess)
 			saver.save(sess, WEIGHT_PATH)
 		print(evaluate_player(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: targetai.play(g), rules=(3, 3, 3), games=200))
 		print(evaluate_player(lambda g: targetai.play(g), lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), rules=(3, 3, 3), games=200))
