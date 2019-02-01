@@ -6,7 +6,7 @@ from mnk import MnkGame
 
 def play_game(first_player, second_player, rules, print_board=False):
 	"""
-	Lets the players play an MnkGame.
+	Lets the players play an MnkGame. If a player returns a tuple ((x, y), justification), will print the justification and use (x, y) for the coordinates.
 	:param first_player: The first player. Must have a play() method that accepts an MnkGame as the first positional argument.
 	:param second_player: The second player. Must have a play() method that accepts an MnkGame as the first positional argument.
 	:param rules: A tuple (horSize, verSize, winLen)
@@ -19,6 +19,9 @@ def play_game(first_player, second_player, rules, print_board=False):
 			decision = first_player(game)
 		else:
 			decision = second_player(game)
+		if not isinstance(decision[1], int):
+			print(decision[1])
+			decision = decision[0]
 		game.place(decision)
 		if print_board:
 			print(np.array(game.array))

@@ -38,19 +38,20 @@ class PolgradRunnerTf:
 		result = session.run(self.layers[-1], feed_dict={self.layers[0]: samples})
 		return result
 
-	def play(self, game, board=None, session=None): #TODO: Return the probabilities without changing the API?
+	def play(self, game, board=None, session=None, returnProbs=False):
 		"""
 		Determines the best cell to play on.
 		:param game: An MnkGame.
 		:param board: A 1d np.ndarray. Fed into the network instead of game.array if supplied.
 		:param session: The tf.Session to use. If not supplied, a new Session is created.
-		:return: The chosen cell's (x, y) coordinates.
+		:param returnProbs: If True, the probabilities will be returned along with the coordinates.
+		:return: The chosen cell's (x, y) coordinates. ((x, y), probabilities list) if returnProbs.
 		"""
 		if board is None:
 			input_d = to_dense_input(game.array)
 		else:
 			input_d = board
-		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0]) #Reshape to 2d before passing it to the network
+		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], returnProbs) #Reshape to 2d before passing it to the network
 
 	@needs_session
 	def selfplay(self, dimen, winLen, cycles=100, session=None):
@@ -119,7 +120,7 @@ class PolgradRunnerTf:
 					session.run(self.trainer, feed_dict={self.layers[0]: action_arrs[action], self.reward_t: k, self.sampled_t: action})
 
 	@needs_session
-	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), interactive=False, session=None):
+	def train(self, dimen, winLen, batch_size=100, cycles=1000, stops=100, rewards=(1, 0, 0.2), interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param dimen: A 2-tuple: (horSize, verSize) of the game.
@@ -129,9 +130,11 @@ class PolgradRunnerTf:
 		:param stops: At every (stops)th cycle, the runner will print out some statistics.
 		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing).
 		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
+		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
+		saver = tf.train.Saver()
 		histo = {rewards[0]: 0, rewards[1]: 0, rewards[2]: 0}
 		performances = []
 		ai = RandomAi()
@@ -139,9 +142,11 @@ class PolgradRunnerTf:
 		started = time.time()
 		for i in range(cycles):
 			if i % stops == (stops - 1):
+				if save_path is not None:
+					saver.save(session, save_path)
 				print(f"{i + 1}th cycle, {time.time() - started} seconds have elapsed since the training started")
 				print(histo)
-				performances.append(evaluate_player(lambda g: self.play(g, to_dense_input(g.array), session=session), lambda g: ai.play(g), rules=(dimen[0], dimen[1], winLen)))
+				performances.append(evaluate_player(lambda g: ai.play(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=(dimen[0], dimen[1], winLen)))
 				print(performances[-1])
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':
