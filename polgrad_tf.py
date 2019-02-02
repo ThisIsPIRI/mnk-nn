@@ -140,6 +140,6 @@ class PolgradRunnerTf:
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':
 					break
-			self._train_cycle(rules, batch_size, rewards, histo, teacher=lambda g:ai.play(g), play_first=i % 2 == 0, session=session)
+			self._train_cycle(rules, batch_size, rewards, histo, teacher=(lambda g:ai.play(g)) if i % 4 <= 1 else None, play_first=i % 2 == 0, session=session)
 		print(histo)
 		return histo, performances
