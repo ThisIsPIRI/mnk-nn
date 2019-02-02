@@ -7,8 +7,8 @@ from mnk import MnkGame
 def play_game(first_player, second_player, rules, print_board=False):
 	"""
 	Lets the players play an MnkGame. If a player returns a tuple ((x, y), justification), will print the justification and use (x, y) for the coordinates.
-	:param first_player: The first player. Must have a play() method that accepts an MnkGame as the first positional argument.
-	:param second_player: The second player. Must have a play() method that accepts an MnkGame as the first positional argument.
+	:param first_player: The first player function. Must accept an MnkGame as the first positional argument.
+	:param second_player: The second player function. Must accept an MnkGame as the first positional argument.
 	:param rules: A tuple (horSize, verSize, winLen)
 	:param print_board: Whether to print the board at the end of each turn.
 	:return: "1st won" if first_player won, "2nd won" if second_player won and "draw" if they drew.
@@ -34,11 +34,8 @@ def play_game(first_player, second_player, rules, print_board=False):
 
 def evaluate_player(first_player, second_player, rules, games=100):
 	"""
-	Pits the players against each other games times and returns how many times they won, lost or drew.
-	:param first_player: The first player. Must have a play() method that accepts an MnkGame as the first positional argument.
-	:param second_player: The second player. Must have a play() method that accepts an MnkGame as the first positional argument.
-	:param rules: A tuple (horSize, verSize, winLen)
-	:parma games: How many games to play.
+	Pits the players against each other games times and returns how many times they won, lost or drew. See play_game for parameter documentations.
+	:param games: How many games to play.
 	:return: A dict {"1st won": int, "2nd won": int, "draw": int}
 	"""
 	histo = {"1st won": 0, "2nd won": 0, "draw": 0}

@@ -25,7 +25,7 @@ class PolgradRunnerTf:
 		self.sampled_t = tf.placeholder(tf.int32)
 		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1], dtype=tf.bool, on_value=True, off_value=False)
 		self.onehot_sampled_t.set_shape((None, None))
-		self.loss_t = -tf.reduce_sum(self.reward_t * tf.boolean_mask(tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0)), self.onehot_sampled_t))
+		self.loss_t = -tf.reduce_mean(self.reward_t * tf.boolean_mask(tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0)), self.onehot_sampled_t))
 		#tf.summary.histogram("Loss", self.loss_t)
 		self.trainer = tf.train.AdamOptimizer(0.001).minimize(self.loss_t)
 
@@ -56,13 +56,15 @@ class PolgradRunnerTf:
 		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], returnProbs) #Reshape to 2d before passing it to the network
 
 	@needs_session
-	def selfplay(self, rules, cycles=100, session=None):
+	def selfplay(self, rules, cycles=100, teacher=None, play_first=False, session=None):
 		"""
-		Plays a game against itself cycles times and returns a list containing all states encountered in all games except the terminal states.
+		Plays a game against itself or a teacher cycles times and returns a list containing all states encountered in all games except the terminal states.
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param cycles: How many games to play.
+		:param teacher: The teacher AI function. If None, will play against self.
+		:param play_first: Whether to play first or second against the teacher.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
-		:return: A list of tuples (game list, winning mnk.Shape), where the game list contains tuples (board state, action taken).
+		:return: A list of tuples (list, winning mnk.Shape), where the list contains tuples (board state, action taken) for one game.
 		"""
 		result = []
 		game = MnkGame(rules[0], rules[1], rules[2])
@@ -71,20 +73,13 @@ class PolgradRunnerTf:
 			winner = 0
 			for j in range(game.horSize * game.verSize):
 				input_d = to_dense_input(game.array)
-				decision = self.play(game, board=input_d, session=session)
-				boards.append((input_d, to_dense_index(game, decision)))
-
-				#TODO: Remove
-				try:
-					game.place(decision)
-				except ValueError:
-					print(game.array)
-					fd = {self.layers[0]: input_d.reshape(-1, self.node_nums[0])}
-					for l in self.layers[1:]:
-						print("layer: ", session.run(l, fd))
-					session.close()
-					input("What to do now?")
-
+				if teacher is not None and (j % 2 == 0 ^ play_first):
+					decision = teacher(game)
+					boards.append(-1) #The teacher's actions aren't needed, but append something so finding out which moves are from the winning/losing side is easier
+				else:
+					decision = self.play(game, board=input_d, session=session)
+					boards.append((input_d, to_dense_index(game, decision)))
+				game.place(decision)
 				if game.checkWin(decision):
 					winner = Shape.O if j % 2 == 1 else Shape.X
 					break
@@ -93,24 +88,24 @@ class PolgradRunnerTf:
 		return result
 
 	@needs_session
-	def _train_cycle(self, rules, batch_size, rewards, histo, session=None):
+	def _train_cycle(self, rules, batch_size, rewards, histo, teacher=None, play_first=False, session=None):
 		"""
-		See train() for parameter documentations.
+		See train() and selfplay() for parameter documentations.
 		:param histo: The histogram dict {rewards[0]: int, rewards[1]: int, rewards[2]: int}. The numbers will be incremented.
 		"""
 		winr, loser, drawr = rewards
-		plays = self.selfplay(rules, batch_size, session)
-		def get_reward(won_side, i):
+		plays = self.selfplay(rules, batch_size, teacher=teacher, play_first=play_first, session=session)
+		def get_reward(won_side, i): #TODO: Occurrences of nonzero rewards should only be counted once
 			if won_side == 0:
-				histo[drawr] += 1 #Counted twice; doesn't matter because the histogram's only for relative scales
+				histo[drawr] += 1
 				return drawr
 			elif (i % 2 == 0 and won_side == Shape.X) or (i % 2 == 1 and won_side == Shape.O):
 				histo[winr] += 1
 				return winr
 			histo[loser] += 1
 			return loser
-		#A list of (input array, reward, sampled action). Ignores 0 rewards and discounts rewards.
-		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i) / (2 ** (len(gw[0]) - i - 1)), board[1]) for i, board in enumerate(gw[0]) if get_reward(gw[1], i) != 0] for gw in plays])
+		#A list of (input array, reward, sampled action). Ignores 0-reward and teachers' actions and discounts rewards.
+		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i) / (2 ** (len(gw[0]) - i - 1)), board[1]) for i, board in enumerate(gw[0]) if board != -1 and get_reward(gw[1], i) != 0] for gw in plays])
 		br = list(zip(*boards))
 		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
@@ -145,6 +140,6 @@ class PolgradRunnerTf:
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':
 					break
-			self._train_cycle(rules, batch_size, rewards, histo, session)
+			self._train_cycle(rules, batch_size, rewards, histo, teacher=lambda g:ai.play(g), play_first=i % 2 == 0, session=session)
 		print(histo)
 		return histo, performances

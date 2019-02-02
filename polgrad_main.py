@@ -6,7 +6,7 @@ from mnkais import FillerAi, RandomAi
 from mnkutil import to_dense_input
 
 def main():
-	LOAD = False
+	LOAD = True
 	WEIGHT_PATH = "weights/weight_bn_ln/weight_bn_ln.ckpt"
 	rules = (3, 3, 3); BOARD_SIZE = rules[0] * rules[1]
 	targetai = RandomAi()
