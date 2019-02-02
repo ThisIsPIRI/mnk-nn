@@ -1,8 +1,9 @@
+import itertools
 import tensorflow as tf
 import time
 
 from metrics import evaluate_player, prepareplt, shownonblock
-from mnk import MnkGame
+from mnk import MnkGame, Shape
 from mnkais import RandomAi
 from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_session
 
@@ -85,7 +86,7 @@ class PolgradRunnerTf:
 					input("What to do now?")
 
 				if game.checkWin(decision):
-					winner = 1 if j % 2 == 1 else -1
+					winner = Shape.O if j % 2 == 1 else Shape.X
 					break
 			result.append((boards, winner)) #-1: 1st won, 1: 2nd won, 0: draw
 			game.initialize()
@@ -95,30 +96,29 @@ class PolgradRunnerTf:
 	def _train_cycle(self, dimen, winLen, batch_size, rewards, histo, session=None):
 		"""
 		See train() for parameter documentations.
-		:param histo: The histogram dict {winr: int, loser: int, drawr: int}. The numbers will be incremented.
+		:param histo: The histogram dict {rewards[0]: int, rewards[1]: int, rewards[2]: int}. The numbers will be incremented.
 		"""
 		winr, loser, drawr = rewards
 		plays = self.selfplay(dimen, winLen, batch_size, session)
-		arrs = {winr: [], loser: [], drawr: []}
-		for play in plays:
-			# Classify the boards by the rewards eventually obtained
-			if play[1] == 0:
-				arrs[drawr].extend(play[0])
-			else:
-				arrs[winr].extend(play[0][1 - (len(play[0]) % 2)::2])
-				arrs[loser].extend(play[0][(len(play[0]) % 2)::2])
-		# Classify them further by the action taken
-		for k in arrs:
-			histo[k] += len(arrs[k])
-			if k == 0: #Ignore zero rewards, regardless of what they represent
-				continue
-			action_arrs = [[] for _ in range(self.node_nums[-1])]
-			for board in arrs[k]:
-				action_arrs[board[1]].append(board[0])
-			for action in range(self.node_nums[-1]):
-				# same_reward_action = [x[0] for x in arrs[k] if x[1] == action]
-				if len(action_arrs[action]) != 0:
-					session.run(self.trainer, feed_dict={self.layers[0]: action_arrs[action], self.reward_t: k, self.sampled_t: action})
+		def get_reward(won_side, i):
+			if won_side == 0:
+				histo[drawr] += 1
+				return drawr
+			elif (i % 2 == 0 and won_side == Shape.X) or (i % 2 == 1 and won_side == Shape.O):
+				histo[winr] += 1
+				return winr
+			histo[loser] += 1
+			return loser
+		#A list of (input array, reward, sampled action).
+		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i), board[1]) for i, board in enumerate(gw[0])] for gw in plays])
+		#Classify them by the action taken
+		action_arrs = [[] for _ in range(self.node_nums[-1])]
+		for board in boards:
+			action_arrs[board[2]].append(board[:2])
+		for action in range(self.node_nums[-1]):
+			if len(action_arrs[action]) != 0:
+				br = list(zip(*action_arrs[action]))
+				session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: action})
 
 	@needs_session
 	def train(self, dimen, winLen, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
