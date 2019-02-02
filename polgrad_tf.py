@@ -110,8 +110,8 @@ class PolgradRunnerTf:
 				return winr
 			histo[loser] += 1
 			return loser
-		#A list of (input array, reward, sampled action).
-		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i), board[1]) for i, board in enumerate(gw[0]) if get_reward(gw[1], i) != 0] for gw in plays])
+		#A list of (input array, reward, sampled action). Ignores 0 rewards and discounts rewards.
+		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i) / (2 ** (len(gw[0]) - i - 1)), board[1]) for i, board in enumerate(gw[0]) if get_reward(gw[1], i) != 0] for gw in plays])
 		br = list(zip(*boards))
 		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
