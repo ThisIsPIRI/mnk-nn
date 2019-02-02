@@ -22,8 +22,8 @@ class PolgradRunnerTf:
 			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1]))
 		self.reward_t = tf.placeholder(tf.float32)
 		self.sampled_t = tf.placeholder(tf.int32)
-		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1])
-		self.loss_t = -(self.reward_t * tf.reduce_sum(tf.multiply(self.onehot_sampled_t, tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0))), axis=1))
+		self.onehot_sampled_t = tf.reshape(tf.one_hot(self.sampled_t, self.node_nums[-1]), (-1, 1)) #Reshape to 2d for matmul
+		self.loss_t = -tf.reduce_sum(self.reward_t * tf.reduce_sum(tf.matmul(tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0)), self.onehot_sampled_t), axis=1))
 		#tf.summary.histogram("Loss", self.loss_t)
 		self.trainer = tf.train.AdamOptimizer(0.001).minimize(self.loss_t)
 
@@ -82,7 +82,7 @@ class PolgradRunnerTf:
 					for l in self.layers[1:]:
 						print("layer: ", session.run(l, fd))
 					session.close()
-					exit()
+					input("What to do now?")
 
 				if game.checkWin(decision):
 					winner = 1 if j % 2 == 1 else -1
