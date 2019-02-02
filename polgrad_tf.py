@@ -103,7 +103,7 @@ class PolgradRunnerTf:
 		plays = self.selfplay(dimen, winLen, batch_size, session)
 		def get_reward(won_side, i):
 			if won_side == 0:
-				histo[drawr] += 1
+				histo[drawr] += 1 #Counted twice; doesn't matter because the histogram's only for relative scales
 				return drawr
 			elif (i % 2 == 0 and won_side == Shape.X) or (i % 2 == 1 and won_side == Shape.O):
 				histo[winr] += 1
@@ -111,7 +111,7 @@ class PolgradRunnerTf:
 			histo[loser] += 1
 			return loser
 		#A list of (input array, reward, sampled action).
-		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i), board[1]) for i, board in enumerate(gw[0])] for gw in plays])
+		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i), board[1]) for i, board in enumerate(gw[0]) if get_reward(gw[1], i) != 0] for gw in plays])
 		br = list(zip(*boards))
 		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
