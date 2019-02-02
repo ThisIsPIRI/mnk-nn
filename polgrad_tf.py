@@ -23,8 +23,9 @@ class PolgradRunnerTf:
 			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1]))
 		self.reward_t = tf.placeholder(tf.float32)
 		self.sampled_t = tf.placeholder(tf.int32)
-		self.onehot_sampled_t = tf.reshape(tf.one_hot(self.sampled_t, self.node_nums[-1]), (-1, 1)) #Reshape to 2d for matmul
-		self.loss_t = -tf.reduce_sum(self.reward_t * tf.reduce_sum(tf.matmul(tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0)), self.onehot_sampled_t), axis=1))
+		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1], dtype=tf.bool, on_value=True, off_value=False)
+		self.onehot_sampled_t.set_shape((None, None))
+		self.loss_t = -tf.reduce_sum(self.reward_t * tf.boolean_mask(tf.log(tf.clip_by_value(self.layers[-1], 1e-8, 1.0)), self.onehot_sampled_t))
 		#tf.summary.histogram("Loss", self.loss_t)
 		self.trainer = tf.train.AdamOptimizer(0.001).minimize(self.loss_t)
 
@@ -111,14 +112,8 @@ class PolgradRunnerTf:
 			return loser
 		#A list of (input array, reward, sampled action).
 		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i), board[1]) for i, board in enumerate(gw[0])] for gw in plays])
-		#Classify them by the action taken
-		action_arrs = [[] for _ in range(self.node_nums[-1])]
-		for board in boards:
-			action_arrs[board[2]].append(board[:2])
-		for action in range(self.node_nums[-1]):
-			if len(action_arrs[action]) != 0:
-				br = list(zip(*action_arrs[action]))
-				session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: action})
+		br = list(zip(*boards))
+		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
 	@needs_session
 	def train(self, dimen, winLen, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
