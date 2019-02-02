@@ -56,17 +56,16 @@ class PolgradRunnerTf:
 		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], returnProbs) #Reshape to 2d before passing it to the network
 
 	@needs_session
-	def selfplay(self, dimen, winLen, cycles=100, session=None):
+	def selfplay(self, rules, cycles=100, session=None):
 		"""
 		Plays a game against itself cycles times and returns a list containing all states encountered in all games except the terminal states.
-		:param dimen: A 2-tuple: (horSize, verSize) of the game.
-		:param winLen: The k in m,n,k game.
+		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param cycles: How many games to play.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
-		:return: A list of lists containing 1~(dimen[0] * dimen[1]) 1d np.ndarrays.
+		:return: A list of tuples (game list, winning mnk.Shape), where the game list contains tuples (board state, action taken).
 		"""
 		result = []
-		game = MnkGame(dimen[0], dimen[1], winLen)
+		game = MnkGame(rules[0], rules[1], rules[2])
 		for i in range(cycles):
 			boards = []
 			winner = 0
@@ -94,13 +93,13 @@ class PolgradRunnerTf:
 		return result
 
 	@needs_session
-	def _train_cycle(self, dimen, winLen, batch_size, rewards, histo, session=None):
+	def _train_cycle(self, rules, batch_size, rewards, histo, session=None):
 		"""
 		See train() for parameter documentations.
 		:param histo: The histogram dict {rewards[0]: int, rewards[1]: int, rewards[2]: int}. The numbers will be incremented.
 		"""
 		winr, loser, drawr = rewards
-		plays = self.selfplay(dimen, winLen, batch_size, session)
+		plays = self.selfplay(rules, batch_size, session)
 		def get_reward(won_side, i):
 			if won_side == 0:
 				histo[drawr] += 1 #Counted twice; doesn't matter because the histogram's only for relative scales
@@ -116,11 +115,10 @@ class PolgradRunnerTf:
 		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
 	@needs_session
-	def train(self, dimen, winLen, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
+	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
-		:param dimen: A 2-tuple: (horSize, verSize) of the game.
-		:param winLen: The k in m,n,k game.
+		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing). The 3 must be different from each other.
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
@@ -142,11 +140,11 @@ class PolgradRunnerTf:
 					saver.save(session, save_path)
 				print(f"{i + 1}th cycle, {time.time() - started} seconds have elapsed since the training started")
 				print(histo)
-				performances.append(evaluate_player(lambda g: ai.play(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=(dimen[0], dimen[1], winLen)))
+				performances.append(evaluate_player(lambda g: ai.play(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=rules))
 				print(performances[-1])
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':
 					break
-			self._train_cycle(dimen, winLen, batch_size, rewards, histo, session)
+			self._train_cycle(rules, batch_size, rewards, histo, session)
 		print(histo)
 		return histo, performances
