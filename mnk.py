@@ -35,14 +35,14 @@ class MnkGame:
 		else:
 			self.horSize = hor; self.verSize = ver
 			self.winStreak = winStreak
-			self.array = [[Shape.N] * self.horSize] * self.verSize
+			self.array = [[self.empty] * self.horSize] * self.verSize
 			self.initialize()
 
 	def place(self, x, y=0):
 		"""Supply a tuple or 2 integers."""
 		if isinstance(x, tuple):
 			y = x[1]; x = x[0]
-		if self.array[y][x] != Shape.N:
+		if self.array[y][x] != self.empty:
 			raise ValueError("Attempted to play on a filled cell")
 		if not self.inBoundary(y, x):
 			raise ValueError("Attempted to play outside the board")
@@ -51,7 +51,7 @@ class MnkGame:
 		self.changeShape(1)
 
 	def initialize(self):
-		self.array = [[Shape.N for j in range(self.horSize)] for i in range(self.verSize)]
+		self.array = [[self.empty for j in range(self.horSize)] for i in range(self.verSize)]
 		self.nextIndex = 0
 		self.history.clear()
 
@@ -76,7 +76,7 @@ class MnkGame:
 		# vertical check
 		for i in range(self.verSize - 1):
 			streak += 1
-			if array[i][x] != array[i + 1][x] or array[i][x] == Shape.N:
+			if array[i][x] != array[i + 1][x] or array[i][x] == self.empty:
 				streak = 0
 			if streak == self.winStreak - 1:
 				return True
@@ -84,7 +84,7 @@ class MnkGame:
 		streak = 0
 		for i in range(self.horSize - 1):
 			streak += 1
-			if array[y][i] != array[y][i + 1] or array[y][i] == Shape.N:
+			if array[y][i] != array[y][i + 1] or array[y][i] == self.empty:
 				streak = 0
 			if streak == self.winStreak - 1:
 				return True
@@ -94,7 +94,7 @@ class MnkGame:
 		j = (x + y) - i
 		while self.inBoundary(i - 1, j + 1):
 			streak += 1
-			if array[i][j] != array[i - 1][j + 1] or array[i][j] == Shape.N:
+			if array[i][j] != array[i - 1][j + 1] or array[i][j] == self.empty:
 				streak = 0
 			if streak == self.winStreak - 1:
 				return True
@@ -105,7 +105,7 @@ class MnkGame:
 		j = 0 if x - y < 0 else x - y
 		while i + 1 < self.verSize and j + 1 < self.horSize:
 			streak += 1
-			if array[i][j] != array[i + 1][j + 1] or array[i][j] == Shape.N:
+			if array[i][j] != array[i + 1][j + 1] or array[i][j] == self.empty:
 				streak = 0
 			if streak == self.winStreak - 1:
 				return True

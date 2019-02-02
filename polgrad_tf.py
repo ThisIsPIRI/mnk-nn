@@ -15,7 +15,6 @@ class PolgradRunnerTf:
 		Builds the graph.
 		:param node_nums: A list containing the number of neurons in each layer from input to output.
 		:param activations: The list of Tensorflow activation functions to be used in each connections.
-		:param last_logged: Whether the activation function for the output layer is "logged"(e.g. tf.nn.log_softmax).
 		"""
 		self.node_nums = node_nums
 		self.layers.append(tf.placeholder(tf.float32, shape=(None, node_nums[0])))

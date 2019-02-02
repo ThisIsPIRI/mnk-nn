@@ -27,7 +27,7 @@ def choose_cell_weighted(game, probs, returnProbs=False):
 	:return: The coordinates of the chosen cell in (x, y). ((x, y), probabilities list) if returnProbs.
 	"""
 	idx = [to_game_index(game, i) for i in range(len(probs))] #Cache 2d indices
-	probs = [0 if game.array[idx[i][1]][idx[i][0]] != Shape.N else probs[i] for i in range(len(probs))] #Never choose a filled cell
+	probs = [0 if game.array[idx[i][1]][idx[i][0]] != game.empty else probs[i] for i in range(len(probs))] #Never choose a filled cell
 	probs = [i / sum(probs) for i in probs] #Normalize to sum to unity
 	if returnProbs:
 		return to_game_index(game, np.random.choice(len(probs), p=probs)), probs
@@ -37,7 +37,7 @@ def choose_cell_weighted(game, probs, returnProbs=False):
 def find_max_valid(game, out):
 	"""Pass the game and raw output from the output layer. Returns None if there isn't any empty cell."""
 	for i in np.argsort(out)[::-1]:
-		if game.array[int(i / game.verSize)][int(i % game.horSize)] == Shape.N:
+		if game.array[int(i / game.verSize)][int(i % game.horSize)] == game.empty:
 			return to_game_index(game, i)
 	return None
 

@@ -21,9 +21,9 @@ def main():
 		if input("train the network?(y/n): ") == "y":
 			runner.train(rules=rules, rewards=(1, 0, 0.3), batch_size=100, cycles=2000, stops=100, interactive=False, save_path=WEIGHT_PATH, session=sess)
 			saver.save(sess, WEIGHT_PATH)
-		print(evaluate_player(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: targetai.play(g), rules=(3, 3, 3), games=200))
-		print(evaluate_player(lambda g: targetai.play(g), lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), rules=(3, 3, 3), games=200))
-		print(play_game(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess, returnProbs=True), lambda g: eval(input()), rules=(3, 3, 3), print_board=True))
+		print(evaluate_player(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), lambda g: targetai.play(g), rules=rules, games=200))
+		print(evaluate_player(lambda g: targetai.play(g), lambda g: runner.play(g, board=to_dense_input(g.array), session=sess), rules=rules, games=200))
+		print(play_game(lambda g: runner.play(g, board=to_dense_input(g.array), session=sess, returnProbs=True), lambda g: eval(input()), rules=rules, print_board=True))
 
 if __name__ == "__main__":
 	main()
