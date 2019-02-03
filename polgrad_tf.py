@@ -11,13 +11,13 @@ from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_
 
 class PolgradRunnerTf:
 	"""The tensors. The first element is the input placeholder and the last one the output layer."""
-	layers = []
 	def __init__(self, node_nums, activations):
 		"""
 		Builds the graph.
 		:param node_nums: A list containing the number of neurons in each layer from input to output.
 		:param activations: The list of Tensorflow activation functions to be used in each connections.
 		"""
+		self.layers = []
 		self.node_nums = node_nums
 		self.layers.append(tf.placeholder(tf.float32, shape=(None, node_nums[0])))
 		for i in range(len(node_nums))[1:]:

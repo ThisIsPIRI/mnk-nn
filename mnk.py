@@ -13,17 +13,15 @@ class Move:
 		self.prev = prev
 
 class Point:
-	def __init__(self, x, y):
-		self.x = x
-		self.y = y
+	def __init__(self, x, y=None):
+		if isinstance(x, Point):
+			self.x = x.x
+			self.y = x.y
+		else:
+			self.x = x
+			self.y = y
 
 class MnkGame:
-	verSize = 15; horSize = 15; winStreak = 5
-	nextIndex = 0
-	shapes = [Shape.X, Shape.O]
-	empty = Shape.N
-	history = []
-
 	def __init__(self, hor=15, ver=15, winStreak=5, copyFrom=None):
 		if copyFrom is not None:
 			self.horSize = copyFrom.horSize; self.verSize = copyFrom.verSize
@@ -32,10 +30,15 @@ class MnkGame:
 			self.shapes = copy.deepcopy(copyFrom.shapes)
 			self.empty = copyFrom.empty
 			self.history = copy.deepcopy(copyFrom.history)
+			self.nextIndex = copyFrom.nextIndex
 		else:
+			self.shapes = [Shape.X, Shape.O]
+			self.empty = Shape.N
+			self.nextIndex = 0
 			self.horSize = hor; self.verSize = ver
 			self.winStreak = winStreak
 			self.array = [[self.empty] * self.horSize] * self.verSize
+			self.history = []
 			self.initialize()
 
 	def place(self, x, y=0):
