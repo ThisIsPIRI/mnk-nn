@@ -48,7 +48,6 @@ class EmacsGomokuAi:
 		self.checkTuples(game, EmacsGomokuAi.Mode.VER, values)
 		self.checkTuples(game, EmacsGomokuAi.Mode.SLASH, values)
 		self.checkTuples(game, EmacsGomokuAi.Mode.RESLASH, values)
-		print(values)
 		return self.findMax(game, values)
 
 	def checkTuples(self, game, mode, values):

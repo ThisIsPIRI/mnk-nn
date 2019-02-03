@@ -57,17 +57,19 @@ class PolgradRunnerTf:
 		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], returnProbs) #Reshape to 2d before passing it to the network
 
 	@needs_session
-	def selfplay(self, rules, cycles=100, teacher=None, play_first=False, session=None):
+	def selfplay(self, rules, cycles=100, teacher=None, play_first=False, epsilon=0, session=None):
 		"""
 		Plays a game against itself or a teacher cycles times and returns a list containing all states encountered in all games except the terminal states.
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param cycles: How many games to play.
 		:param teacher: The teacher AI function. If None, will play against self.
 		:param play_first: Whether to play first or second against the teacher.
+		:param epsilon: The probability of playing a purely random move.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
 		:return: A list of tuples (list, winning mnk.Shape), where the list contains tuples (board state, action taken) for one game.
 		"""
 		result = []
+		randai = RandomAi()
 		game = MnkGame(rules[0], rules[1], rules[2])
 		for i in range(cycles):
 			boards = []
@@ -78,7 +80,10 @@ class PolgradRunnerTf:
 					decision = teacher(game)
 					boards.append(-1) #The teacher's actions aren't needed, but append something so finding out which moves are from the winning/losing side is easier
 				else:
-					decision = self.play(game, board=input_d, session=session)
+					if random.random() < epsilon:
+						decision = randai.play(game)
+					else:
+						decision = self.play(game, board=input_d, session=session)
 					boards.append((input_d, to_dense_index(game, decision)))
 				game.place(decision)
 				if game.checkWin(decision):
@@ -89,13 +94,13 @@ class PolgradRunnerTf:
 		return result
 
 	@needs_session
-	def _train_cycle(self, rules, batch_size, rewards, histo, teacher=None, play_first=False, session=None):
+	def _train_cycle(self, rules, batch_size, rewards, histo, teacher=None, play_first=False, epsilon=0, session=None):
 		"""
 		See train() and selfplay() for parameter documentations.
 		:param histo: The histogram dict {rewards[0]: int, rewards[1]: int, rewards[2]: int}. The numbers will be incremented.
 		"""
 		winr, loser, drawr = rewards
-		plays = self.selfplay(rules, batch_size, teacher=teacher, play_first=play_first, session=session)
+		plays = self.selfplay(rules, batch_size, teacher=teacher, play_first=play_first, epsilon=epsilon, session=session)
 		def get_reward(won_side, i): #TODO: Occurrences of nonzero rewards should only be counted once
 			if won_side == 0:
 				histo[drawr] += 1
@@ -107,11 +112,12 @@ class PolgradRunnerTf:
 			return loser
 		#A list of (input array, reward, sampled action). Ignores 0-reward and teachers' actions and discounts rewards.
 		boards = itertools.chain(*[[(board[0], get_reward(gw[1], i) / (2 ** (len(gw[0]) - i - 1)), board[1]) for i, board in enumerate(gw[0]) if board != -1 and get_reward(gw[1], i) != 0] for gw in plays])
-		br = list(zip(*boards))
-		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
+		bra = list(zip(*boards)) #[list of input arrays, list of rewards, list of sampled actions]
+		if len(bra) > 0: #bra can be empty if the runner lost all games against a teacher
+			session.run(self.trainer, feed_dict={self.layers[0]: bra[0], self.reward_t: bra[1], self.sampled_t: bra[2]})
 
 	@needs_session
-	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, teachers=None, interactive=False, save_path=None, session=None):
+	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, teachers=None, epsilon=0, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
@@ -121,6 +127,7 @@ class PolgradRunnerTf:
 		:param stops: At every (stops)th cycle, the runner will print out some statistics.
 		:param teachers: A list of tuples (teacher function, frequency int, probability of the teacher playing first). If None, will only play against itself.
 		The teachers will be cycled in the order they are stored, each cycle using each teacher (frequency int) times.
+		:param epsilon: The probability of playing a purely random move.
 		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
 		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
@@ -150,10 +157,10 @@ class PolgradRunnerTf:
 			if teachers is not None:
 				teacheridx = bisect.bisect(teachers[1], i % teachersum)
 				teacher = teachers[0][teacheridx]
-				play_first = teachers[2][teacheridx] < random.random()
+				play_first = i % 2 == 0 #teachers[2][teacheridx] < random.random()
 			else:
 				teacher = None
 				play_first = False
-			self._train_cycle(rules, batch_size, rewards, histo, teacher=teacher, play_first=play_first, session=session)
+			self._train_cycle(rules, batch_size, rewards, histo, teacher=teacher, play_first=play_first, epsilon=epsilon, session=session)
 		print(histo)
 		return histo, performances
