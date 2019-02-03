@@ -1,4 +1,6 @@
+import bisect
 import itertools
+import random
 import tensorflow as tf
 import time
 
@@ -109,7 +111,7 @@ class PolgradRunnerTf:
 		session.run(self.trainer, feed_dict={self.layers[0]: br[0], self.reward_t: br[1], self.sampled_t: br[2]})
 
 	@needs_session
-	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, interactive=False, save_path=None, session=None):
+	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, teachers=None, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
@@ -117,6 +119,8 @@ class PolgradRunnerTf:
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
 		:param stops: At every (stops)th cycle, the runner will print out some statistics.
+		:param teachers: A list of tuples (teacher function, frequency int, probability of the teacher playing first). If None, will only play against itself.
+		The teachers will be cycled in the order they are stored, each cycle using each teacher (frequency int) times.
 		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
 		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
 		:param session: The tf.Session to use. If not specified, a new Session is created.
@@ -127,6 +131,10 @@ class PolgradRunnerTf:
 		performances = []
 		ai = RandomAi()
 		prepareplt()
+		if teachers is not None:
+			teachers = list(zip(*teachers))
+			teachersum = sum(teachers[1])
+			teachers[1] = [sum(teachers[1][:i]) for i in range(1, len(teachers[1]) + 1)] #Accumulate
 		started = time.time()
 		for i in range(cycles):
 			if i % stops == (stops - 1):
@@ -139,6 +147,13 @@ class PolgradRunnerTf:
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':
 					break
-			self._train_cycle(rules, batch_size, rewards, histo, teacher=(lambda g:ai.play(g)) if i % 4 <= 1 else None, play_first=i % 2 == 0, session=session)
+			if teachers is not None:
+				teacheridx = bisect.bisect(teachers[1], i % teachersum)
+				teacher = teachers[0][teacheridx]
+				play_first = teachers[2][teacheridx] < random.random()
+			else:
+				teacher = None
+				play_first = False
+			self._train_cycle(rules, batch_size, rewards, histo, teacher=teacher, play_first=play_first, session=session)
 		print(histo)
 		return histo, performances

@@ -2,6 +2,7 @@ import bisect
 import functools
 import inspect
 import numpy as np
+import os
 import random
 import tensorflow as tf
 
@@ -101,3 +102,6 @@ def needs_session(func):
 			kwargs["session"].close()
 		return result
 	return wrapper
+
+def get_layer_weights(layer, session):
+	return session.run(tf.get_default_graph().get_tensor_by_name(os.path.split(layer.name)[0] + '/kernel:0'))
