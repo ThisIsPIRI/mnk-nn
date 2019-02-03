@@ -1,6 +1,5 @@
+import numpy as np
 import random
-
-from mnk import Shape
 
 class RandomAi:
 	def play(self, game):
@@ -17,3 +16,8 @@ class FillerAi:
 			for j in range(len(game.array)):
 				if game.array[i][j] == game.empty:
 					return j, i
+
+class Human:
+	def play(self, game):
+		print(np.array(game.array))
+		return eval(input())

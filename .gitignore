@@ -1,7 +1,7 @@
 __pycache__/
 .idea/
-**.txt
-Legacy
-logs
+Legacy/
 weights/
+com/
+**.txt
 benchmark.py

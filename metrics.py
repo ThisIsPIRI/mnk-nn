@@ -43,10 +43,6 @@ def evaluate_player(first_player, second_player, rules, games=100):
 		histo[play_game(first_player, second_player, rules)] += 1
 	return histo
 
-def human(game):
-	print(np.array(game.array))
-	return eval(input())
-
 def prepareplt():
 	"""Call before calling shownonblock."""
 	plt.ion()
