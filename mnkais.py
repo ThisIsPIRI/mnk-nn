@@ -25,7 +25,7 @@ class Human:
 		#print(np.array(game.array))
 		return eval(input())
 
-class EmacsGomokuAi:
+class EmacsGomokuAi: #Translated from PIRI MNK 1.9.3
 	class Mode:
 		HOR = 0
 		VER = 1
