@@ -22,7 +22,7 @@ class FillerAi:
 
 class Human:
 	def play(self, game):
-		print(np.array(game.array))
+		#print(np.array(game.array))
 		return eval(input())
 
 class EmacsGomokuAi:

@@ -1,5 +1,6 @@
 import bisect
 import itertools
+import os.path
 import random
 import tensorflow as tf
 import time
@@ -10,6 +11,7 @@ from mnkais import RandomAi
 from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_session
 
 class PolgradRunnerTf:
+	weight_format = "{}th_cycle.ckpt"
 	"""The tensors. The first element is the input placeholder and the last one the output layer."""
 	def __init__(self, node_nums, activations):
 		"""
@@ -41,20 +43,20 @@ class PolgradRunnerTf:
 		result = session.run(self.layers[-1], feed_dict={self.layers[0]: samples})
 		return result
 
-	def play(self, game, board=None, session=None, returnProbs=False):
+	def play(self, game, board=None, session=None, return_probs=False):
 		"""
 		Determines the best cell to play on.
 		:param game: An MnkGame.
 		:param board: A 1d np.ndarray. Fed into the network instead of game.array if supplied.
 		:param session: The tf.Session to use. If not supplied, a new Session is created.
-		:param returnProbs: If True, the probabilities will be returned along with the coordinates.
+		:param return_probs: If True, the probabilities will be returned along with the coordinates.
 		:return: The chosen cell's (x, y) coordinates. ((x, y), probabilities list) if returnProbs.
 		"""
 		if board is None:
 			input_d = to_dense_input(game.array)
 		else:
 			input_d = board
-		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], returnProbs) #Reshape to 2d before passing it to the network
+		return choose_cell_weighted(game, self.forward_propagate(input_d.reshape(-1, self.node_nums[0]), session)[0], return_probs) #Reshape to 2d before passing it to the network
 
 	@needs_session
 	def selfplay(self, rules, cycles=100, teacher=None, play_first=False, epsilon=0, session=None):
@@ -117,16 +119,18 @@ class PolgradRunnerTf:
 			session.run(self.trainer, feed_dict={self.layers[0]: bra[0], self.reward_t: bra[1], self.sampled_t: bra[2]})
 
 	@needs_session
-	def train(self, rules, rewards, batch_size=100, cycles=1000, stops=100, teachers=None, epsilon=0, interactive=False, save_path=None, session=None):
+	def train(self, rules, rewards, batch_size=100, cycles=1000, cyclestart=0, stops=100, teachers=None, epsilon=0, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing). The 3 must be different from each other.
 		:param batch_size: The cycles argument in selfplay.
 		:param cycles: How many batches of games to play.
+		:param cyclestart: The number at which the cycle counts start.
 		:param stops: At every (stops)th cycle, the runner will print out some statistics.
 		:param teachers: A list of tuples (teacher function, frequency int, probability of the teacher playing first). If None, will only play against itself.
 		The teachers will be cycled in the order they are stored, each cycle using each teacher (frequency int) times.
+		The saved model from the last stop will be used as a teacher if a literal "SELF" is passed as a teacher function. The save_path must be specified in this case.
 		:param epsilon: The probability of playing a purely random move.
 		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
 		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
@@ -139,15 +143,22 @@ class PolgradRunnerTf:
 		ai = RandomAi()
 		prepareplt()
 		if teachers is not None:
-			teachers = list(zip(*teachers))
+			teachers = list([list(z) for z in zip(*teachers)])
 			teachersum = sum(teachers[1])
 			teachers[1] = [sum(teachers[1][:i]) for i in range(1, len(teachers[1]) + 1)] #Accumulate
+			if "SELF" in teachers[0]:
+				frozen_sess = tf.Session()
+				teachers[0][teachers[0].index("SELF")] = lambda g: self.play(g, board=to_dense_input(g.array), session=frozen_sess)
+			else:
+				frozen_sess = None
 		started = time.time()
-		for i in range(cycles):
-			if i % stops == (stops - 1):
+		for i in range(cyclestart, cyclestart + cycles):
+			if i % stops == (stops - 1) or i == cyclestart:
 				if save_path is not None:
-					saver.save(session, save_path)
-				print(f"{i + 1}th cycle, {time.time() - started} seconds have elapsed since the training started")
+					saver.save(session, os.path.join(save_path, PolgradRunnerTf.weight_format.format(i + 1)))
+				if frozen_sess is not None:
+					saver.restore(frozen_sess, os.path.join(save_path, PolgradRunnerTf.weight_format.format(i + 1)))
+				print(f"{i + 1}({i + 1 - cyclestart})th cycle, {time.time() - started} seconds have elapsed since the training started")
 				print(histo)
 				performances.append(evaluate_player(lambda g: ai.play(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=rules))
 				print(performances[-1])
@@ -157,7 +168,7 @@ class PolgradRunnerTf:
 			if teachers is not None:
 				teacheridx = bisect.bisect(teachers[1], i % teachersum)
 				teacher = teachers[0][teacheridx]
-				play_first = i % 2 == 0 #teachers[2][teacheridx] < random.random()
+				play_first = teachers[2][teacheridx] < random.random()
 			else:
 				teacher = None
 				play_first = False

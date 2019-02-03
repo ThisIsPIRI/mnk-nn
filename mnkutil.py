@@ -18,19 +18,19 @@ def choose_weighted(probs):
 	pairs = [(gamecell[0], sum([t[1] for t in pairs[:loopidx + 1]])) for loopidx, gamecell in enumerate(pairs)] #Accumulate the probabilities
 	return pairs[bisect.bisect([p[1] for p in pairs], random.random())][0] #Find the chosen cell's coordinates and return it
 
-def choose_cell_weighted(game, probs, returnProbs=False):
+def choose_cell_weighted(game, probs, return_probs=False):
 	"""
 	Chooses a cell from the game with probs[i] as the probability for cell (i % horSize, i / verSize).
 	The probabilities for non-empty cells will be changed to 0 and the rest normalized to sum to unity.
 	:param game: The MnkGame to use.
 	:param probs: The 1d np.ndarray of probabilities.
-	:param returnProbs: If True, the probabilities will be returned along with the coordinates.
+	:param return_probs: If True, the probabilities will be returned along with the coordinates.
 	:return: The coordinates of the chosen cell in (x, y). ((x, y), probabilities list) if returnProbs.
 	"""
 	idx = [to_game_index(game, i) for i in range(len(probs))] #Cache 2d indices
 	probs = [0 if game.array[idx[i][1]][idx[i][0]] != game.empty else probs[i] for i in range(len(probs))] #Never choose a filled cell
 	probs = [i / sum(probs) for i in probs] #Normalize to sum to unity
-	if returnProbs:
+	if return_probs:
 		return to_game_index(game, np.random.choice(len(probs), p=probs)), probs
 	else:
 		return to_game_index(game, np.random.choice(len(probs), p=probs))
