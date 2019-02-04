@@ -141,7 +141,6 @@ class PolgradRunnerTf:
 		saver = tf.train.Saver()
 		histo = {rewards[0]: 0, rewards[1]: 0, rewards[2]: 0}
 		performances = []
-		ai = RandomAi()
 		prepareplt()
 		if teachers is not None:
 			teachers = list([list(z) for z in zip(*teachers)])
@@ -150,6 +149,7 @@ class PolgradRunnerTf:
 			if "SELF" in teachers[0]:
 				frozen_sess = tf.Session()
 				teachers[0][teachers[0].index("SELF")] = lambda g: self.play(g, board=to_dense_input(g.array), session=frozen_sess)
+				ai = lambda g: self.play(g, board=to_dense_input(g.array), session=frozen_sess)
 			else:
 				frozen_sess = None
 		started = time.time()
@@ -161,7 +161,7 @@ class PolgradRunnerTf:
 						saver.restore(frozen_sess, os.path.join(save_path, PolgradRunnerTf.weight_format.format(i + 1)))
 				print(f"{i + 1}({i + 1 - cyclestart})th cycle, {time.time() - started} seconds have elapsed since the training started")
 				print(histo)
-				performances.append(evaluate_player(lambda g: ai.play(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=rules))
+				performances.append(evaluate_player(lambda g: ai(g), lambda g: self.play(g, to_dense_input(g.array), session=session), rules=rules))
 				print(performances[-1])
 				shownonblock(performances, labels=["1st won", "2nd won", "draw"])
 				if interactive and input("Continue training?(y/n): ") == 'n':

@@ -5,3 +5,4 @@ weights/
 com/
 **.txt
 benchmark.py
+**.tflite

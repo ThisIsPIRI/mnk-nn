@@ -30,6 +30,7 @@ def choose_cell_weighted(game, probs, return_probs=False):
 	idx = [to_game_index(game, i) for i in range(len(probs))] #Cache 2d indices
 	probs = [0 if game.array[idx[i][1]][idx[i][0]] != game.empty else probs[i] for i in range(len(probs))] #Never choose a filled cell
 	probs = [i / sum(probs) for i in probs] #Normalize to sum to unity
+	print(probs)
 	if return_probs:
 		return to_game_index(game, np.random.choice(len(probs), p=probs)), probs
 	else:
