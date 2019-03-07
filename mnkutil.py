@@ -11,6 +11,7 @@ from mnk import MnkGame, Shape
 def choose_weighted(probs):
 	"""
 	Randomly chooses an integer i from range(len(probs)) with probs[i] as its probability.
+
 	:param probs: The 1d np.ndarray of probabilities.
 	:return: The chosen index.
 	"""
@@ -22,6 +23,7 @@ def choose_cell_weighted(game, probs, return_probs=False):
 	"""
 	Chooses a cell from the game with probs[i] as the probability for cell (i % horSize, i / verSize).
 	The probabilities for non-empty cells will be changed to 0 and the rest normalized to sum to unity.
+
 	:param game: The MnkGame to use.
 	:param probs: The 1d np.ndarray of probabilities.
 	:param return_probs: If True, the probabilities will be returned along with the coordinates.
@@ -46,6 +48,7 @@ def find_max_valid(game, out):
 def to_game_index(game, data):
 	"""
 	Converts a flattened index to 2d index.
+
 	:param game: The MnkGame or a tuple containing (horSize, verSize).
 	:param data: The index.
 	:return: (x, y)
@@ -58,6 +61,7 @@ def to_game_index(game, data):
 def to_dense_index(game, data):
 	"""
 	Converts a 2d index to flattened index.
+
 	:param game: The MnkGame or a tuple containing (horSize, verSize).
 	:param data: The index(x, y).
 	:return: An int.
@@ -70,6 +74,7 @@ def to_dense_index(game, data):
 def to_dense_input(array):
 	"""
 	Converts a multidimensional python list to a np.ndarray suitable for feeding into PolgradRunnerTf.
+
 	:param array: The MnkGame.array.
 	:return: The flattened np.ndarray.
 	"""
@@ -86,8 +91,10 @@ def needs_session(func):
 	"""
 	Creates a Session if one isn't given, runs global_variables_initializer() on it, passes it to the decoratee and closes the Session it created, if any.
 	The Session argument's name(both when being passed into the wrapper and the wrapee) must be 'session' and its default value None.
-	:param func: The function to decorate. It must accept a 'session' as a keyword argument
+
+	:param func: The function to decorate. It must accept a 'session' as a keyword argument \
 	and be able to accept positional arguments from kwargs(e.g. for a function f(a, b=123), f(a=1, b=2) must be a valid call).
+
 	:return: The decorated function.
 	"""
 	@functools.wraps(func)

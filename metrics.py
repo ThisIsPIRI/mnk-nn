@@ -7,6 +7,7 @@ from mnk import MnkGame
 def play_game(first_player, second_player, rules, print_board=False):
 	"""
 	Lets the players play an MnkGame. If a player returns a tuple ((x, y), justification), will print the justification and use (x, y) for the coordinates.
+
 	:param first_player: The first player function. Must accept an MnkGame as the first positional argument.
 	:param second_player: The second player function. Must accept an MnkGame as the first positional argument.
 	:param rules: A tuple (horSize, verSize, winLen)
@@ -35,6 +36,7 @@ def play_game(first_player, second_player, rules, print_board=False):
 def evaluate_player(first_player, second_player, rules, games=100):
 	"""
 	Pits the players against each other games times and returns how many times they won, lost or drew. See play_game for parameter documentations.
+
 	:param games: How many games to play.
 	:return: A dict {"1st won": int, "2nd won": int, "draw": int}
 	"""
@@ -51,6 +53,7 @@ def prepareplt():
 def shownonblock(data, labels=None):
 	"""
 	Plots the individual elements in data as separate lines and shows them with pyplot.
+
 	:param data: The list of lines to plot. Can be a list of dicts if the keys are supplied as labels.
 	:param labels: The labels for each line.
 	"""

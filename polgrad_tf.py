@@ -12,10 +12,10 @@ from mnkutil import choose_cell_weighted, to_dense_input, to_dense_index, needs_
 
 class PolgradRunnerTf:
 	weight_format = "{}th_cycle.ckpt"
-	"""The tensors. The first element is the input placeholder and the last one the output layer."""
 	def __init__(self, node_nums, activations):
 		"""
 		Builds the graph.
+
 		:param node_nums: A list containing the number of neurons in each layer from input to output.
 		:param activations: The list of Tensorflow activation functions to be used in each connections.
 		"""
@@ -36,6 +36,7 @@ class PolgradRunnerTf:
 	def forward_propagate(self, samples, session=None):
 		"""
 		Propagates forward the samples and calculates the probabilities for each cells.
+
 		:param samples: 2d np.ndarray with rows as samples and columns as cells.
 		:param session: The session to use. If not supplied, a new session is created and closed.
 		:return: The probabilities for each cell, flattened in C order.
@@ -46,6 +47,7 @@ class PolgradRunnerTf:
 	def play(self, game, board=None, session=None, return_probs=False):
 		"""
 		Determines the best cell to play on.
+
 		:param game: An MnkGame.
 		:param board: A 1d np.ndarray. Fed into the network instead of game.array if supplied.
 		:param session: The tf.Session to use. If not supplied, a new Session is created.
@@ -62,6 +64,7 @@ class PolgradRunnerTf:
 	def selfplay(self, rules, cycles=100, teacher=None, play_first=0, epsilon=0, session=None):
 		"""
 		Plays a game against itself or a teacher cycles times and returns a list containing all states encountered in all games except the terminal states.
+
 		:param rules: A tuple: (horSize, verSize, winlen) of the game.
 		:param cycles: How many games to play.
 		:param teacher: The teacher AI function. If None, will play against self.
@@ -100,6 +103,7 @@ class PolgradRunnerTf:
 	def _train_cycle(self, rules, batch_size, rewards, histo, teacher=None, play_first=0, epsilon=0, session=None):
 		"""
 		See train() and selfplay() for parameter documentations.
+
 		:param histo: The histogram dict {rewards[0]: int, rewards[1]: int, rewards[2]: int}. The numbers will be incremented.
 		"""
 		winr, loser, drawr = rewards
@@ -123,19 +127,20 @@ class PolgradRunnerTf:
 	def train(self, rules, rewards, batch_size=100, cycles=1000, cyclestart=0, stops=100, teachers=None, epsilon=0, interactive=False, save_path=None, session=None):
 		"""
 		Trains the network with policy gradients.
-		:param rules: A tuple: (horSize, verSize, winlen) of the game.
-		:param rewards: A tuple (reward for winning, reward for losing, reward for drawing). The 3 must be different from each other.
-		:param batch_size: The cycles argument in selfplay.
-		:param cycles: How many batches of games to play.
-		:param cyclestart: The number at which the cycle counts start.
-		:param stops: At every (stops)th cycle, the runner will print out some statistics.
-		:param teachers: A list of tuples (teacher function, frequency int, probability of the teacher playing first). If None, will only play against itself.
-		The teachers will be cycled in the order they are stored, each cycle using each teacher (frequency int) times.
+
+		:param tuple rules: (horSize, verSize, winlen) of the game.
+		:param tuple rewards: (reward for winning, reward for losing, reward for drawing). The 3 must be different from each other.
+		:param int batch_size: The cycles argument in selfplay.
+		:param int cycles: How many batches of games to play.
+		:param int cyclestart: The number at which the cycle counts start.
+		:param int stops: At every (stops)th cycle, the runner will print out some statistics.
+		:param teachers: A list of tuples (teacher function, frequency int, probability of the teacher playing first). If None, will only play against itself. \
+		The teachers will be cycled in the order they are stored, each cycle using each teacher (frequency int) times. \
 		The saved model from the last stop will be used as a teacher if a literal "SELF" is passed as a teacher function. The save_path must be specified in this case.
-		:param epsilon: The probability of playing a purely random move.
-		:param interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
-		:param save_path: If not None, will save the weights to save_path every (stops)th cycle.
-		:param session: The tf.Session to use. If not specified, a new Session is created.
+		:param float epsilon: The probability of playing a purely random move.
+		:param bool interactive: If True, will ask for confirmation to keep training every (stops)th cycle.
+		:param str save_path: If not None, will save the weights to save_path every (stops)th cycle.
+		:param tf.Session session: The tf.Session to use. If not specified, a new Session is created.
 		"""
 		#writer = tf.summary.FileWriter("logs/")
 		saver = tf.train.Saver()
