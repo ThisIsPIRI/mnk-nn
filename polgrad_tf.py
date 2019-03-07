@@ -23,7 +23,7 @@ class PolgradRunnerTf:
 		self.node_nums = node_nums
 		self.layers.append(tf.placeholder(tf.float32, shape=(None, node_nums[0])))
 		for i in range(len(node_nums))[1:]:
-			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1]))
+			self.layers.append(tf.layers.dense(self.layers[i - 1], node_nums[i], activations[i - 1])) #TODO: tf.layers.dense deprecated
 		self.reward_t = tf.placeholder(tf.float32)
 		self.sampled_t = tf.placeholder(tf.int32)
 		self.onehot_sampled_t = tf.one_hot(self.sampled_t, self.node_nums[-1], dtype=tf.bool, on_value=True, off_value=False)
